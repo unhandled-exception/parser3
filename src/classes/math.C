@@ -146,7 +146,7 @@ static void _crypt(Request& r, MethodParams& params) {
 	} else
 		normal_salt=maybe_bodyless_salt;
 
-	/* FreeBSD style MD5 string 
+	/* FreeBSD style MD5 string
 	*/
 	if(strncmp(normal_salt, PA_MD5PW_ID, PA_MD5PW_IDLEN) == 0) {
 		const size_t sample_size=120;
@@ -164,7 +164,7 @@ static void _crypt(Request& r, MethodParams& params) {
 			throw Exception(PARSER_RUNTIME,
 				0,
 				"crypt on this platform does not support '%.*s' salt prefix", prefix_size, normal_salt);
-		
+
 		r.write(String(pa_strdup(static_sample_buf)));
 #else
 		throw Exception(PARSER_RUNTIME,
@@ -496,8 +496,30 @@ static void _uuid(Request& r, MethodParams& params) {
 			if (valid_options != options->count())
 				throw Exception(PARSER_RUNTIME, 0, CALLED_WITH_INVALID_OPTION);
 		}
-	
+
 	r.write(*new String(get_uuid_cstr(lower, solid)));
+}
+
+static void _uuid7(Request& r, MethodParams& params) {
+	bool lower=false;
+	bool solid=false;
+
+	if (params.count() == 1)
+		if (HashStringValue* options = params.as_hash(0)) {
+			int valid_options = 0;
+			if (Value* vlower = options->get("lower")) {
+				lower = r.process(*vlower).as_bool();
+				valid_options++;
+			}
+			if (Value* vsolid = options->get("solid")) {
+				solid = r.process(*vsolid).as_bool();
+				valid_options++;
+			}
+			if (valid_options != options->count())
+				throw Exception(PARSER_RUNTIME, 0, CALLED_WITH_INVALID_OPTION);
+		}
+
+	r.write(*new String(get_uuid7_cstr(lower, solid)));
 }
 
 static void _uid64(Request& r, MethodParams& params) {
@@ -713,7 +735,7 @@ static void _convert(Request& r, MethodParams& params) {
 // constructor
 
 MMath::MMath(): Methoded("math") {
-	// ^FUNC(expr)	
+	// ^FUNC(expr)
 #define ADDX(name, X) \
 	add_native_method(#name, Method::CT_STATIC, _##name, X, X)
 #define ADD0(name) ADDX(name, 0)
@@ -743,16 +765,20 @@ MMath::MMath(): Methoded("math") {
 
 	// ^math:sha1[string]
 	ADD1(sha1);
-	
+
 	// ^math:digest[method;string|file;options]
 	add_native_method("digest", Method::CT_STATIC, _digest, 2, 3);
-	
+
 	// ^math:crc32[string]
 	ADD1(crc32);
 
 	// ^math:uuid[]
 	// ^math:uuid[options hash]
 	add_native_method("uuid", Method::CT_STATIC, _uuid, 0, 1);
+
+	// ^math:uuid7[]
+	// ^math:uuid7[options hash]
+	add_native_method("uuid7", Method::CT_STATIC, _uuid7, 0, 1);
 
 	// ^math:uid64[]
 	// ^math:uid64[options hash]

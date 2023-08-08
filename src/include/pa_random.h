@@ -21,6 +21,7 @@ static inline int _random(int top) {
 }
 
 char *get_uuid_cstr(bool lower, bool solid);
+char *get_uuid7_cstr(bool lower, bool solid);
 char *get_uuid_boundary();
 
 #endif

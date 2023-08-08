@@ -19,7 +19,7 @@ volatile const char * IDENT_PA_RANDOM_C="$Id: pa_random.C,v 1.11 2021/01/13 21:2
 
 class Random_provider {
 	HCRYPTPROV fhProv;
-	
+
 	void acquire() {
 		SYNCHRONIZED;
 
@@ -33,7 +33,7 @@ class Random_provider {
 		if(fhProv)
 			CryptReleaseContext(fhProv, 0);
 	}
-	
+
 public:
 	Random_provider(): fhProv(0) {}
 	~Random_provider() { release(); }
@@ -127,7 +127,7 @@ static uuid get_uuid() {
 
 	// http://www.opengroup.org/onlinepubs/9629399/apdxa.htm#tagtcjh_35
 	// ~
-	// version = DCE Security version, with embedded POSIX UIDs.  
+	// version = DCE Security version, with embedded POSIX UIDs.
 	// variant = DCE
 	//
 	// DCE=Distributed Computing Environment
@@ -136,7 +136,7 @@ static uuid get_uuid() {
 	// they say this influences comparison&such,
 	// but could not figure out how, hence structure layout specified strictly
 	// anyhow, uuidgen on Win32 yield those values
-	// 
+	//
 	// xxxxxxxx-xxxx-4xxx-{8,9,A,B}xxx-xxxxxxxxxxxx
 	uuid.clock_seq = (uuid.clock_seq & 0x3FFF) | 0x8000;
         uuid.time_hi_and_version = (uuid.time_hi_and_version & 0x0FFF) | 0x4000;
@@ -179,4 +179,49 @@ char *get_uuid_boundary() {
 		uuid.node[0], uuid.node[1], uuid.node[2],
 		uuid.node[3], uuid.node[4], uuid.node[5]);
 	return boundary;
+}
+
+
+char *get_uuid7_cstr(bool lower, bool solid) {
+	unsigned char uuid[16];
+	random(&uuid[6], 10);
+
+	struct timeval tv;
+    gettimeofday(&tv, 0);
+
+    uint64_t unix_ts_ms = (uint64_t)tv.tv_sec * 1000 + (uint64_t)tv.tv_usec / 1000;
+
+	uuid[0] = (unsigned char) (unix_ts_ms >> 40);
+	uuid[1] = (unsigned char) (unix_ts_ms >> 32);
+	uuid[2] = (unsigned char) (unix_ts_ms >> 24);
+	uuid[3] = (unsigned char) (unix_ts_ms >> 16);
+	uuid[4] = (unsigned char) (unix_ts_ms >> 8);
+	uuid[5] = (unsigned char) (unix_ts_ms);
+
+	/*
+	 * Set magic numbers for a "version 7" UUID, see
+	 * https://www.ietf.org/archive/id/draft-ietf-uuidrev-rfc4122bis-00.html#name-uuid-version-7
+	 */
+	uuid[6] = (uuid[6] & 0x0f) | 0x70; /* 4 bit version [0111] */
+	uuid[8] = (uuid[8] & 0x3f) | 0x80; /* 2 bit variant [10]   */
+
+	const size_t bufsize=36+1/*zero-teminator*/+1/*for faulty snprintfs*/;
+	char* cstr=new(PointerFreeGC) char[bufsize];
+
+	const char *format[] = {
+		"%02X%02X%02X%02X-%02X%02X-%02X%02X-%02X%02X-%02X%02X%02X%02X%02X%02X",
+		"%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+		"%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X",
+		"%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
+	};
+
+	snprintf(cstr, bufsize,
+		format[(lower ? 1:0) + (solid ? 2:0)],
+		uuid[0], uuid[1], uuid[2], uuid[3],
+		uuid[4], uuid[5], uuid[6], uuid[7],
+		uuid[8], uuid[9], uuid[10], uuid[11],
+		uuid[12], uuid[13], uuid[14], uuid[15]
+    );
+
+	return cstr;
 }
